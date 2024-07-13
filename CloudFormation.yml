@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  ContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: blog-app-content-bucket
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  UserPoolPostconfirmationTriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowDynamoDB
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource: "*"
+
+  UserPoolPostConfirmationTrigger:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: blog-app-user-pool-post-confirmation-trigger
+      Code:
+        ZipFile: |
+          import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb"
+
+          const dynamodb = new DynamoDBClient()
+
+          export async function handler(event, context) {
+            const username = event.userName
+            const cmd = new PutItemCommand({
+              TableName: "users",
+              Item: {
+                "username": {
+                  "S": username
+                },
+                "fullName": {
+                  "S": ""
+                },
+                "profilePicture": {
+                  "S": ""
+                },
+                "creationDate": {
+                  "S": (new Date()).toISOString()
+                },
+                "bio": {
+                  "S": ""
+                }
+              }
+            })
+            
+            await dynamodb.send(cmd)
+            return event
+          }
+      Handler: index.handler
+      Architectures:
+        - arm64
+      Runtime: nodejs20.x
+      Role: !GetAtt UserPoolPostconfirmationTriggerRole.Arn
+  
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: blog-app-user-pool
+
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: admin_only
+            Priority: 1
+
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: true
+        DeviceOnlyRememberedOnUserPrompt: true
+
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 365
+
+      UsernameConfiguration:
+        CaseSensitive: false
+
+      MfaConfiguration: "ON"
+
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+
+      LambdaConfig:
+        PostConfirmation: !GetAtt UserPoolPostConfirmationTrigger.Arn
+
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+        
+      EmailConfiguration:
+        EmailSendingAccount: "COGNITO_DEFAULT"
+      
+      AutoVerifiedAttributes:
+        - email
+  
+  UserPoolHostedUIClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: hosted-ui
+      UserPoolId: !Ref UserPool
+      SupportedIdentityProviders:
+        - COGNITO
+      AccessTokenValidity: 24
+      IdTokenValidity: 24
+      RefreshTokenValidity: 7
+      AllowedOAuthFlows:
+        - implicit
+      AuthSessionValidity: 3
+      CallbackURLs:
+        - https://localhost/auth
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      PreventUserExistenceErrors: "ENABLED"
+      WriteAttributes:
+        - email
+      ReadAttributes:
+        - email
+      AllowedOAuthScopes:
+        - aws.cognito.signin.user.admin
+        - openid
+        - profile
+
+  UserPoolAPIClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: api
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      AccessTokenValidity: 24
+      IdTokenValidity: 24
+      RefreshTokenValidity: 7
+      AuthSessionValidity: 3
+      GenerateSecret: true
+      PreventUserExistenceErrors: "ENABLED"
+      WriteAttributes:
+        - email
+      ReadAttributes:
+        - email
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: blog-app-auth
+      UserPoolId: !Ref UserPool

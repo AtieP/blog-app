@@ -1,0 +1,62 @@
+services:
+  api:
+    build:
+      context: api
+      secrets:
+        - api-config
+    secrets:
+      - source: api-config
+        target: /api/src/config/config.ts
+      - source: api-env
+        target: /api/.env
+      # useful for testing
+      # - source: aws-config
+      #   target: /home/node/.aws/config
+      #   uid: "1000"
+      #   gid: "1000"
+      # - source: aws-credentials
+      #   target: /home/node/.aws/credentials
+      #   uid: "1000"
+      #   gid: "1000"
+    expose:
+      - 80/tcp
+
+  website:
+    build:
+      context: website
+      secrets:
+        - website-env
+    expose:
+      - 80/tcp
+
+  nginx:
+    build: nginx
+    ports:
+      - 127.0.0.1:443:443/tcp
+      - 127.0.0.1:80:80/tcp
+    secrets:
+      - tls-key
+      - tls-cert
+
+secrets:
+  api-config:
+    file: secrets/api/config.ts
+
+  api-env:
+    file: secrets/api/.env
+
+  website-env:
+    file: secrets/website/.env
+
+  # useful for testing
+  # aws-config:
+  #   file: ~/.aws/config
+
+  # aws-credentials:
+  #   file: ~/.aws/credentials
+
+  # tls-key:
+  #   file: ~/cert/localhost.key
+
+  # tls-cert:
+  #   file: ~/cert/localhost.crt

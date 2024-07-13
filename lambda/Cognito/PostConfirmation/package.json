@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.609.0"
+  },
+  "scripts": {
+    "bundle": "zip -r PostConfirmation.zip .",
+    "createFunction": "aws lambda create-function --function-name BlogAppPostConfirmationTrigger --zip-file fileb://$(pwd)/PostConfirmation.zip --handler PostConfirmation.handler --runtime nodejs20.x"
+  }
+}

@@ -1,0 +1,14 @@
+{
+    "buildOptions": {
+        "incremental": true
+    },
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "outDir": "dist/",
+        "target": "ES2018",
+        "moduleResolution": "NodeNext",
+        "module": "NodeNext"
+    },
+    "include": ["index.ts", "src/**/*.ts"],
+    "exclude": ["./node_modules/"]
+}
