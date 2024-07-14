@@ -131,6 +131,10 @@ Resources:
       AccessTokenValidity: 24
       IdTokenValidity: 24
       RefreshTokenValidity: 7
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
       AllowedOAuthFlows:
         - implicit
       AuthSessionValidity: 3
@@ -149,6 +153,7 @@ Resources:
         - aws.cognito.signin.user.admin
         - openid
         - profile
+      AllowedOAuthFlowsUserPoolClient: true
 
   UserPoolAPIClient:
     Type: AWS::Cognito::UserPoolClient
@@ -163,6 +168,10 @@ Resources:
       AccessTokenValidity: 24
       IdTokenValidity: 24
       RefreshTokenValidity: 7
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
       AuthSessionValidity: 3
       GenerateSecret: true
       PreventUserExistenceErrors: "ENABLED"
